@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoundCloud Playlist Clone</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <img src="../assets/icon48.png" alt="SC Clone" class="logo-icon">
+      <h1>SoundCloud Clone</h1>
+    </div>
+    <div class="status-indicator" id="statusIndicator">
+      <span class="status-dot"></span>
+      <span class="status-text">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container" id="mainContainer">
+    
+    <!-- Credentials Status Section -->
+    <div class="section" id="credentialsSection">
+      <div class="section-header">
+        <h3>🔑 API Status</h3>
+      </div>
+      <div class="section-content">
+        <div class="status-card" id="credentialsStatus">
+          <div class="status-message">Checking credentials...</div>
+          <div class="status-details"></div>
+        </div>
+        <button class="btn btn-secondary" id="refreshCredentialsBtn" style="display: none;">
+          🔄 Refresh Credentials
+        </button>
+      </div>
+    </div>
+
+    <!-- Current Page Info -->
+    <div class="section" id="pageInfoSection">
+      <div class="section-header">
+        <h3>📍 Current Page</h3>
+      </div>
+      <div class="section-content">
+        <div class="page-info" id="pageInfo">
+          <div class="page-status">Detecting page...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clone Operation -->
+    <div class="section" id="cloneSection" style="display: none;">
+      <div class="section-header">
+        <h3>🔄 Clone Playlist</h3>
+      </div>
+      <div class="section-content">
+        
+        <!-- Source Playlist Input -->
+        <div class="input-group">
+          <label for="sourcePlaylistUrl">Source Playlist URL:</label>
+          <input 
+            type="url" 
+            id="sourcePlaylistUrl" 
+            placeholder="https://soundcloud.com/user/sets/playlist-name"
+            class="input-field"
+          >
+          <button class="btn btn-secondary btn-small" id="useCurrentPageBtn">
+            📍 Use Current Page
+          </button>
+        </div>
+
+        <!-- Target Playlist Input -->
+        <div class="input-group">
+          <label for="targetPlaylistUrl">Target Playlist URL:</label>
+          <input 
+            type="url" 
+            id="targetPlaylistUrl" 
+            placeholder="https://soundcloud.com/you/sets/your-playlist"
+            class="input-field"
+          >
+        </div>
+
+        <!-- Clone Options -->
+        <div class="options-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="skipDuplicates" checked>
+            <span class="checkmark"></span>
+            Skip duplicate tracks
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="preserveOrder" checked>
+            <span class="checkmark"></span>
+            Preserve track order
+          </label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button class="btn btn-primary" id="previewBtn">
+            👁️ Preview Changes
+          </button>
+          <button class="btn btn-success" id="cloneBtn" disabled>
+            🚀 Clone Playlist
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="section" id="progressSection" style="display: none;">
+      <div class="section-header">
+        <h3>⚡ Processing</h3>
+      </div>
+      <div class="section-content">
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-text" id="progressText">Starting...</div>
+        </div>
+        <div class="progress-details" id="progressDetails"></div>
+        <button class="btn btn-danger btn-small" id="cancelBtn" style="display: none;">
+          ❌ Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="section" id="resultsSection" style="display: none;">
+      <div class="section-header">
+        <h3 id="resultsTitle">✅ Success</h3>
+      </div>
+      <div class="section-content">
+        <div class="results-summary" id="resultsSummary"></div>
+        <div class="results-details" id="resultsDetails"></div>
+        <div class="action-buttons">
+          <button class="btn btn-secondary" id="newCloneBtn">
+            🔄 Clone Another
+          </button>
+          <button class="btn btn-primary" id="openTargetBtn" style="display: none;">
+            🎵 Open Target Playlist
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Section -->
+    <div class="section error-section" id="errorSection" style="display: none;">
+      <div class="section-header">
+        <h3>❌ Error</h3>
+      </div>
+      <div class="section-content">
+        <div class="error-message" id="errorMessage"></div>
+        <div class="error-details" id="errorDetails"></div>
+        <div class="action-buttons">
+          <button class="btn btn-secondary" id="retryBtn">
+            🔄 Try Again
+          </button>
+          <button class="btn btn-link" id="reportBtn">
+            📝 Report Issue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="section" id="helpSection">
+      <div class="section-header">
+        <h3>💡 Quick Help</h3>
+      </div>
+      <div class="section-content">
+        <div class="help-tips">
+          <div class="tip">
+            <strong>Step 1:</strong> Visit any SoundCloud page to capture API credentials
+          </div>
+          <div class="tip">
+            <strong>Step 2:</strong> Navigate to the playlist you want to clone
+          </div>
+          <div class="tip">
+            <strong>Step 3:</strong> Set your target playlist and click Clone
+          </div>
+        </div>
+        <div class="help-links">
+          <a href="#" id="viewLogsBtn" class="help-link">🔍 View Debug Logs</a>
+          <a href="#" id="clearDataBtn" class="help-link">🗑️ Clear Stored Data</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="version">v1.0.0</div>
+    <div class="links">
+      <a href="#" id="aboutBtn">About</a>
+      <a href="#" id="supportBtn">Support</a>
+    </div>
+  </div>
+
+  <!-- Debug Panel (Hidden by default) -->
+  <div class="debug-panel" id="debugPanel" style="display: none;">
+    <div class="debug-header">
+      <h4>🔍 Debug Information</h4>
+      <button class="btn btn-link btn-small" id="closeDebugBtn">✕</button>
+    </div>
+    <div class="debug-content">
+      <textarea id="debugLogs" readonly></textarea>
+      <div class="debug-actions">
+        <button class="btn btn-secondary btn-small" id="copyLogsBtn">📋 Copy Logs</button>
+        <button class="btn btn-secondary btn-small" id="exportLogsBtn">💾 Export</button>
+        <button class="btn btn-danger btn-small" id="clearLogsBtn">🗑️ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading...</div>
+  </div>
+
+  <script src="../utils/utils.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
