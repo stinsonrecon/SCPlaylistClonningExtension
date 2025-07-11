@@ -1,196 +1,202 @@
 # SoundCloud Playlist Clone Extension
 
-Chrome extension để clone SoundCloud playlists với duplicate detection và preserve order.
+A powerful browser extension that allows you to clone and merge SoundCloud playlists with advanced duplicate detection and multiple merge strategies.
 
 ## 🚀 Features
 
-- **Auto-detect API Credentials**: Tự động capture SoundCloud API credentials
-- **Smart Duplicate Detection**: Tránh duplicate tracks khi merge playlists  
-- **Preserve Track Order**: Giữ nguyên thứ tự tracks trong playlist
-- **Real-time Progress**: Theo dõi tiến trình clone real-time
-- **Debug Tools**: Built-in debug panel cho development
+### Core Functionality
+- **Auto-detect API credentials** from SoundCloud pages
+- **Authentication verification** with OAuth token extraction
+- **Playlist URL parsing** supporting multiple formats
+- **Source playlist analysis** with validation and preview
+- **Target playlist permission checking**
+- **Advanced duplicate detection** using multiple algorithms
+- **Multiple merge strategies** (Append, Prepend, Smart, Replace)
+- **Real-time progress tracking** during operations
+- **Actual playlist updates** via SoundCloud API
 
-## 📁 Project Structure
+### Advanced Features
+- **Smart duplicate detection** with confidence scoring
+- **Fuzzy matching** for similar tracks (title, artist, duration)
+- **Batch processing** for large playlists
+- **Memory-efficient** track processing
+- **Comprehensive error handling** with retry logic
+- **User-friendly interface** with progress indicators
 
+## 📋 Requirements
+
+- Chrome/Chromium browser (Manifest V3)
+- Active SoundCloud account
+- Valid SoundCloud session (logged in)
+
+## 🛠️ Installation
+
+### Development Setup
+1. Clone or download the extension files
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" (top right toggle)
+4. Click "Load unpacked" and select the extension folder
+5. The extension icon will appear in your browser toolbar
+
+### File Structure
 ```
-soundcloud-playlist-clone/
-├── manifest.json              # Extension configuration
-├── background.js              # Service worker
-├── content.js                 # SoundCloud page injection
-├── popup/
-│   ├── popup.html            # Extension popup UI
-│   ├── popup.js              # Popup logic
-│   └── popup.css             # Popup styling
+soundcloud-clone-extension/
+├── manifest.json          # Extension configuration
+├── popup.html             # Main UI interface
+├── popup.js              # UI logic and event handling
+├── content.js            # SoundCloud page interaction
+├── background.js         # Service worker for API calls
 ├── utils/
-│   └── utils.js              # Shared utilities
-├── assets/
-│   ├── icon16.png            # Extension icons
-│   ├── icon48.png
-│   └── icon128.png
-├── .vscode/
-│   └── settings.json         # VS Code configuration
-└── README.md
+│   └── utils.js          # Core utility functions
+└── icons/
+    ├── icon16.png        # Extension icons
+    ├── icon48.png
+    └── icon128.png
 ```
 
-## 🛠️ Development Setup
+## 🎯 How to Use
 
-### Prerequisites
-- Google Chrome Browser
-- VS Code (recommended)
+### Step 1: Setup
+1. Navigate to any SoundCloud page to auto-capture API credentials
+2. Extension will automatically detect if you're logged in
 
-### Installation
+### Step 2: Source Playlist
+1. Click the extension icon to open the popup
+2. Enter source playlist URL or use "Use Current Page" if on a playlist
+3. Click "Preview Source" to analyze the playlist
+4. Review track count, accessibility, and preview tracks
 
-1. **Clone project**:
-   ```bash
-   git clone <repository-url>
-   cd soundcloud-playlist-clone
-   ```
+### Step 3: Target Playlist  
+1. Enter target playlist URL (must be your own playlist)
+2. Click "Analyze Target" to check permissions and current tracks
+3. Review merge preview showing duplicates and new tracks
 
-2. **Load extension trong Chrome**:
-   - Mở Chrome → `chrome://extensions/`
-   - Enable "Developer mode" (toggle góc phải)
-   - Click "Load unpacked"
-   - Select project folder
+### Step 4: Configure Merge
+1. Click "Execute Merge" to open merge options
+2. Choose merge strategy:
+   - **Append**: Add new tracks to the end (recommended)
+   - **Prepend**: Add new tracks to the beginning
+   - **Smart**: Group similar tracks together
+   - **Replace**: Replace all existing tracks
+3. Configure duplicate detection sensitivity
+4. Enable/disable duplicate skipping and order preservation
 
-3. **VS Code setup**:
-   - Install recommended extensions:
-     - Chrome Extension Pack
-     - JavaScript (ES6) code snippets
-   - VS Code settings đã được pre-configured
+### Step 5: Execute
+1. Review final merge summary
+2. Click "Proceed with Merge" to update the playlist
+3. Monitor progress and wait for completion
+4. Success screen shows statistics and provides playlist link
 
-### Development Workflow
+## 🔧 Supported URL Formats
 
-1. **Edit code** trong VS Code
-2. **Reload extension** trong Chrome Extensions page
-3. **Test changes** trên SoundCloud
-4. **Debug** using Chrome DevTools
+The extension supports various SoundCloud playlist URL formats:
 
-## 🔧 Debugging
-
-### Service Worker (background.js)
 ```
-Chrome Extensions → Extension details → "Inspect views: service worker"
-```
-
-### Content Script (content.js)  
-```
-F12 trên SoundCloud page → Console tab
-```
-
-### Popup (popup.js)
-```
-Right-click extension icon → "Inspect popup"
+https://soundcloud.com/username/sets/playlist-name
+https://soundcloud.com/username/sets/playlist-name?si=...
+https://api-v2.soundcloud.com/playlists/123456789
+Direct playlist ID: 123456789
 ```
 
-### Built-in Debug Panel
-- Click "View Debug Logs" trong extension popup
-- Hoặc trong console: `popupUtils.showDebug()`
+## ⚙️ Technical Details
 
-## 📊 Development Phases
+### Architecture
+- **Phase 1**: Setup & Authentication
+- **Phase 2**: Source Playlist Analysis  
+- **Phase 3**: Target Playlist Analysis
+- **Phase 4**: Merge Execution with Duplicate Detection
+- **Phase 5**: API Update via SoundCloud
 
-### ✅ Phase 1: Extension Setup & Configuration (Current)
-- Chrome Extension structure
-- API credentials auto-detection
-- Basic popup UI
-- Utils foundation
+### Duplicate Detection Algorithms
+1. **Exact ID Match**: Perfect track ID matching (100% confidence)
+2. **Title+Artist Match**: Exact text matching with duration validation (95% confidence)
+3. **Fuzzy Matching**: Levenshtein distance algorithm for similar tracks (50-90% confidence)
 
-### 🔄 Phase 2: Source Playlist Processing (Next)
-- Extract playlist ID từ URLs
-- Fetch complete playlist data
-- Handle large playlists
-- User authentication
+### Merge Strategies
+- **Append**: Safest option, adds tracks to end of playlist
+- **Prepend**: Adds tracks to beginning, useful for chronological ordering
+- **Smart**: Uses artist similarity to group related tracks
+- **Replace**: Completely replaces playlist content (use with caution)
 
-### 🔄 Phase 3: Target Playlist Management
-- List user playlists
-- Target playlist selection
-- Validation
+### Performance Optimizations
+- Efficient track ID extraction and processing
+- Batch API calls for large playlists
+- Memory usage estimation and monitoring
+- Exponential backoff retry logic
 
-### 🔄 Phase 4: Merge & Deduplication Logic
-- Smart merge algorithm
-- Duplicate detection
-- Preserve order
+## 🛡️ Privacy & Security
 
-### 🔄 Phase 5: Update & Error Handling
-- Execute playlist updates
-- Progress tracking
-- Error recovery
+- **No data collection**: Extension operates locally in your browser
+- **Secure API calls**: Uses your existing SoundCloud authentication
+- **No external servers**: All processing happens client-side
+- **Minimal permissions**: Only accesses SoundCloud domains
 
-### 🔄 Phase 6: Optimization & Polish
-- Performance improvements
-- Background sync
-- Advanced features
+## ⚠️ Limitations
 
-## 🔍 Current Status
+- Only works with public playlists for source (or your own private playlists)
+- Target playlist must be owned by you
+- Large playlists (500+ tracks) may take longer to process
+- Rate limited by SoundCloud API (built-in retry handling)
+- Requires active SoundCloud login session
 
-**Phase 1 Complete** ✅
-- Extension loads và injects properly
-- API credentials auto-capture working
-- Popup UI functional
-- Debug system operational
+## 🐛 Troubleshooting
 
-**Ready for Phase 2** 🔄
+### Common Issues
 
-## 🧪 Testing
+**"No API Credentials" Error**
+- Solution: Visit any SoundCloud page and refresh to capture credentials
 
-### Manual Testing Checklist
+**"Authentication Required" Error**  
+- Solution: Make sure you're logged into SoundCloud in the same browser
 
-1. **Extension Loading**:
-   - [ ] Extension loads without errors
-   - [ ] Icon appears trong Chrome toolbar
-   - [ ] Popup opens correctly
+**"Access Denied" to Target Playlist**
+- Solution: Ensure the target playlist belongs to your account
 
-2. **Credential Capture**:
-   - [ ] Visit SoundCloud → credentials auto-captured
-   - [ ] Green status indicator appears
-   - [ ] Credentials persist across sessions
+**Extension Not Loading**
+- Solution: Refresh the SoundCloud page and try again
+- Check if content script injection failed
 
-3. **Page Detection**:
-   - [ ] Navigate to playlist page → auto-detected
-   - [ ] "Use Current Page" button works
-   - [ ] Non-playlist pages handled correctly
+### Debug Information
+If issues persist, check browser console for detailed error messages:
+1. Right-click → "Inspect" → "Console" tab
+2. Look for `[POPUP]`, `[CONTENT]`, or `[UTILS]` prefixed messages
 
-4. **UI Functionality**:
-   - [ ] All buttons respond
-   - [ ] Input validation works
-   - [ ] Debug panel accessible
+## 🔄 Version History
 
-### Debug Commands
-
-```javascript
-// Trong Chrome Console (popup context)
-popupUtils.getCredentials()     // View current credentials
-popupUtils.getPageInfo()        // View page detection
-popupUtils.getLogs()            // View debug logs
-popupUtils.showDebug()          // Open debug panel
-popupUtils.clearData()          // Clear all data
-```
-
-## 🚨 Known Issues
-
-- **Phase 1 Limitations**:
-  - Clone functionality not yet implemented (Phase 2+)
-  - OAuth token extraction needs refinement
-  - Large playlist handling pending
-
-## 📝 Next Steps
-
-1. **Start Phase 2**: Source Playlist Processing
-2. **Implement playlist ID extraction** từ various URL formats
-3. **Add complete playlist fetching** với pagination
-4. **OAuth token management** cho authentication
+### v1.0.0 (Current)
+- ✅ Complete playlist cloning functionality
+- ✅ Advanced duplicate detection with multiple algorithms
+- ✅ Four merge strategies (Append, Prepend, Smart, Replace)
+- ✅ Real-time progress tracking and comprehensive error handling
+- ✅ Production-ready UI without debug features
+- ✅ Full SoundCloud API integration
 
 ## 🤝 Contributing
 
-Development follows phased approach:
-1. Complete current phase thoroughly
-2. Test all functionality
-3. Move to next phase
-4. Maintain backward compatibility
+This extension is designed as a comprehensive solution for SoundCloud playlist management. 
+
+### Potential Enhancements
+- Multiple source playlist support
+- Playlist backup/restore functionality
+- Advanced filtering and sorting options
+- Cross-platform playlist export
+- Automated playlist synchronization
 
 ## 📄 License
 
-Private development project.
+This project is for educational and personal use. Please respect SoundCloud's Terms of Service when using this extension.
+
+## ⚡ Quick Start
+
+1. **Install** the extension in Chrome
+2. **Visit** SoundCloud and log in
+3. **Navigate** to a source playlist  
+4. **Open** extension popup
+5. **Click** "Use Current Page" → "Preview Source"
+6. **Enter** target playlist URL → "Analyze Target"
+7. **Click** "Execute Merge" → Configure options → "Proceed"
+8. **Wait** for completion and enjoy your merged playlist! 🎵
 
 ---
 
-**Current Phase**: 1 ✅ | **Next Phase**: 2 🔄
+**Made with ❤️ for the SoundCloud community**
