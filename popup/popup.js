@@ -92,14 +92,18 @@ function handleModeChange() {
 function updateModeUI() {
   const createInputs = elements.createModeInputs;
   const mergeInputs = elements.mergeModeInputs;
-  const cloneBtnText = elements.cloneBtnText;
+  const cloneBtnText = elements.cloneBtnText || elements.cloneBtn; // SAFE VERSION
   
   if (currentMode === 'create') {
     createInputs.style.display = 'block';
     mergeInputs.style.display = 'none';
     
     if (cloneBtnText) {
-      cloneBtnText.textContent = '🚀 Create Playlist';
+      if (cloneBtnText === elements.cloneBtn) {
+        cloneBtnText.textContent = '🚀 Create Playlist';
+      } else {
+        cloneBtnText.textContent = 'Create Playlist';
+      }
     }
     
     console.log('[POPUP] UI updated for create mode');
@@ -108,7 +112,11 @@ function updateModeUI() {
     mergeInputs.style.display = 'block';
     
     if (cloneBtnText) {
-      cloneBtnText.textContent = '🚀 Analyze Target';
+      if (cloneBtnText === elements.cloneBtn) {
+        cloneBtnText.textContent = '🚀 Analyze Target';
+      } else {
+        cloneBtnText.textContent = 'Analyze Target';
+      }
     }
     
     console.log('[POPUP] UI updated for merge mode');
@@ -939,15 +947,25 @@ function showPreviewResults(data) {
   const canProceed = validation.isAccessible && hasValidToken;
 
   if (elements.cloneBtn) {
-  elements.cloneBtn.disabled = !canProceed;
-  
-  // Update button text based on mode
-  if (currentMode === 'create') {
-    elements.cloneBtnText.textContent = canProceed ? '🚀 Create Playlist' : '🔒 Login Required';
-  } else {
-    elements.cloneBtnText.textContent = canProceed ? '🚀 Analyze Target' : '🔒 Login Required';
+    elements.cloneBtn.disabled = !canProceed;
+    
+    // Update button text based on mode - SAFE VERSION
+    const cloneBtnText = elements.cloneBtnText || elements.cloneBtn;
+    
+    if (currentMode === 'create') {
+      if (cloneBtnText === elements.cloneBtn) {
+        cloneBtnText.textContent = canProceed ? '🚀 Create Playlist' : '🔒 Login Required';
+      } else {
+        cloneBtnText.textContent = canProceed ? 'Create Playlist' : 'Login Required';
+      }
+    } else {
+      if (cloneBtnText === elements.cloneBtn) {
+        cloneBtnText.textContent = canProceed ? '🚀 Analyze Target' : '🔒 Login Required';
+      } else {
+        cloneBtnText.textContent = canProceed ? 'Analyze Target' : 'Login Required';
+      }
+    }
   }
-}
 }
 
 function showMergePreview(data) {
