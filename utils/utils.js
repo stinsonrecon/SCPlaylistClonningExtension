@@ -312,6 +312,98 @@ const SoundCloudUtils = {
   },
 
   /**
+   * Phase 6: Create new playlist on SoundCloud
+   */
+  async createNewPlaylist(playlistData, credentials, authToken) {
+    try {
+      console.log('[UTILS] Creating new playlist:', playlistData.title);
+
+      if (!authToken) {
+        throw new Error('Authentication token required for playlist creation');
+      }
+
+      if (!this.isValidCredentials(credentials)) {
+        throw new Error('Valid credentials are required');
+      }
+
+      // Generate resource ID
+      const resourceId = this.generateResourceId();
+      console.log(`[UTILS] Generated resource ID: ${resourceId}`);
+
+      // Build API URL
+      const apiUrl = this.buildAPIUrl('/playlists', credentials);
+
+      // Prepare payload
+      const payload = {
+        playlist: {
+          title: playlistData.title,
+          sharing: playlistData.sharing || 'public',
+          tracks: playlistData.tracks || [],
+          _resource_id: resourceId,
+          _resource_type: 'playlist'
+        }
+      };
+
+      console.log('[UTILS] Create playlist payload:', payload);
+
+      // Make API request
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `OAuth ${authToken}`,
+          'Accept': 'application/json, text/javascript, */*; q=0.01',
+          'Origin': 'https://soundcloud.com',
+          'Referer': 'https://soundcloud.com/'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[UTILS] Create playlist failed:', response.status, errorText);
+        
+        if (response.status === 403) {
+          throw new Error('Permission denied. Make sure you are logged into SoundCloud.');
+        } else if (response.status === 401) {
+          throw new Error('Authentication failed. Please refresh the page and try again.');
+        } else if (response.status === 422) {
+          throw new Error('Invalid playlist data. Please check the title and try again.');
+        } else {
+          throw new Error(`Failed to create playlist: ${response.status} ${response.statusText}`);
+        }
+      }
+
+      const newPlaylist = await response.json();
+      console.log('[UTILS] Playlist created successfully:', {
+        id: newPlaylist.id,
+        title: newPlaylist.title,
+        permalink_url: newPlaylist.permalink_url
+      });
+
+      return {
+        id: newPlaylist.id,
+        title: newPlaylist.title,
+        sharing: newPlaylist.sharing || playlistData.sharing,
+        permalink_url: newPlaylist.permalink_url,
+        track_count: newPlaylist.track_count || playlistData.tracks.length,
+        created_at: newPlaylist.created_at || new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('[UTILS] Error creating new playlist:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate resource ID for playlist creation
+   */
+  generateResourceId() {
+    return `f-${Math.floor(Math.random() * 9999) + 1}`;
+  },
+
+  /**
    * Merge track arrays với duplicate detection
    */
   mergeTrackArrays(existingTracks, newTracks) {

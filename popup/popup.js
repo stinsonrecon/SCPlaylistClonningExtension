@@ -14,6 +14,7 @@ let targetPlaylistData = null;
 let currentUser = null;
 let authToken = null;
 let lastUpdatePackage = null;
+let currentMode = 'create'; // NEW: Track current mode (create/merge)
 
 // DOM elements
 const elements = {};
@@ -36,7 +37,10 @@ function cacheElements() {
     'progressDetails', 'cancelBtn', 'resultsSection', 'resultsTitle',
     'resultsSummary', 'resultsDetails', 'newCloneBtn', 'openTargetBtn',
     'errorSection', 'errorMessage', 'errorDetails', 'retryBtn',
-    'clearDataBtn', 'loadingOverlay'
+    'clearDataBtn', 'loadingOverlay',
+    // NEW Phase 6 elements
+    'createNewMode', 'mergeExistingMode', 'createModeInputs', 'mergeModeInputs',
+    'newPlaylistTitle'
   ];
 
   ids.forEach(id => {
@@ -59,12 +63,77 @@ function setupEventListeners() {
   elements.clearDataBtn?.addEventListener('click', handleClearData);
   elements.sourcePlaylistUrl?.addEventListener('input', validateInputs);
   elements.targetPlaylistUrl?.addEventListener('input', validateInputs);
+  // NEW Phase 6 listeners - Mode toggle
+  elements.createNewMode?.addEventListener('change', handleModeChange);
+  elements.mergeExistingMode?.addEventListener('change', handleModeChange);
+  elements.newPlaylistTitle?.addEventListener('input', validateInputs);
   chrome.runtime.onMessage.addListener(handleBackgroundMessage);
+}
+
+// NEW Phase 6: Handle mode change
+function handleModeChange() {
+  const newMode = elements.createNewMode?.checked ? 'create' : 'merge';
+  
+  if (newMode !== currentMode) {
+    currentMode = newMode;
+    console.log(`[POPUP] Mode changed to: ${currentMode}`);
+    
+    updateModeUI();
+    
+    if (currentMode === 'create' && sourcePlaylistData) {
+      updateNewPlaylistTitle();
+    }
+    
+    validateInputs();
+  }
+}
+
+// NEW Phase 6: Update UI based on current mode
+function updateModeUI() {
+  const createInputs = elements.createModeInputs;
+  const mergeInputs = elements.mergeModeInputs;
+  const cloneBtnText = elements.cloneBtnText;
+  
+  if (currentMode === 'create') {
+    createInputs.style.display = 'block';
+    mergeInputs.style.display = 'none';
+    
+    if (cloneBtnText) {
+      cloneBtnText.textContent = '🚀 Create Playlist';
+    }
+    
+    console.log('[POPUP] UI updated for create mode');
+  } else {
+    createInputs.style.display = 'none';
+    mergeInputs.style.display = 'block';
+    
+    if (cloneBtnText) {
+      cloneBtnText.textContent = '🚀 Analyze Target';
+    }
+    
+    console.log('[POPUP] UI updated for merge mode');
+  }
+}
+
+// NEW Phase 6: Update new playlist title based on source
+function updateNewPlaylistTitle() {
+  if (elements.newPlaylistTitle && sourcePlaylistData) {
+    const defaultTitle = `Copy of ${sourcePlaylistData.title}`;
+    elements.newPlaylistTitle.placeholder = defaultTitle;
+    
+    if (!elements.newPlaylistTitle.value.trim()) {
+      elements.newPlaylistTitle.value = defaultTitle;
+    }
+  }
 }
 
 async function initializeUI() {
   try {
     showLoading('Initializing...');
+    
+    // Initialize mode UI
+    updateModeUI();
+    
     await checkCredentials();
     await checkCurrentPage();
     await checkAuthenticationStatus();
@@ -270,8 +339,8 @@ function updateUIState() {
 
 function validateInputs() {
   const sourceUrl = elements.sourcePlaylistUrl?.value?.trim();
-  const targetUrl = elements.targetPlaylistUrl?.value?.trim();
-
+  
+  // Validate source URL (always required)
   let sourceValid = false;
   let sourceMessage = '';
 
@@ -288,41 +357,69 @@ function validateInputs() {
     }
   }
 
-  let targetValid = false;
-  let targetMessage = '';
+  // Mode-specific validation
+  let secondaryValid = false;
+  let secondaryMessage = '';
 
-  if (targetUrl) {
-    const targetExtracted = SoundCloudUtils.extractPlaylistId(targetUrl);
-    targetValid = !!targetExtracted;
+  if (currentMode === 'create') {
+    // For create mode, validate new playlist title
+    const newTitle = elements.newPlaylistTitle?.value?.trim();
+    secondaryValid = !!newTitle && newTitle.length > 0;
+    secondaryMessage = secondaryValid ? '✓ Playlist title ready' : 'Please enter playlist title';
+  } else {
+    // For merge mode, validate target URL
+    const targetUrl = elements.targetPlaylistUrl?.value?.trim();
+    
+    if (targetUrl) {
+      const targetExtracted = SoundCloudUtils.extractPlaylistId(targetUrl);
+      secondaryValid = !!targetExtracted;
 
-    if (!targetValid) {
-      targetMessage = 'Invalid playlist URL format';
-    } else if (targetExtracted.id) {
-      targetMessage = `✓ Target playlist ID: ${targetExtracted.id}`;
-    } else if (targetExtracted.username && targetExtracted.slug) {
-      targetMessage = `✓ Target playlist: ${targetExtracted.username}/${targetExtracted.slug}`;
+      if (!secondaryValid) {
+        secondaryMessage = 'Invalid playlist URL format';
+      } else if (targetExtracted.id) {
+        secondaryMessage = `✓ Target playlist ID: ${targetExtracted.id}`;
+      } else if (targetExtracted.username && targetExtracted.slug) {
+        secondaryMessage = `✓ Target playlist: ${targetExtracted.username}/${targetExtracted.slug}`;
+      }
     }
   }
 
+  // Update button states
   if (elements.previewBtn) {
     elements.previewBtn.disabled = !sourceValid || isOperationInProgress;
   }
 
   if (elements.cloneBtn) {
-    elements.cloneBtn.disabled = !sourceValid || !targetValid || isOperationInProgress;
+    const authRequired = !!authToken;
+    
+    if (currentMode === 'create') {
+      elements.cloneBtn.disabled = !sourceValid || !secondaryValid || !authRequired || !sourcePlaylistData || isOperationInProgress;
+    } else {
+      elements.cloneBtn.disabled = !sourceValid || !secondaryValid || !authRequired || !sourcePlaylistData || isOperationInProgress;
+    }
   }
 
+  // Visual feedback for inputs
   if (elements.sourcePlaylistUrl) {
     const isSourceError = sourceUrl && !sourceValid;
     elements.sourcePlaylistUrl.style.borderColor = isSourceError ? '#ef4444' : '';
     elements.sourcePlaylistUrl.title = sourceMessage;
   }
 
-  if (elements.targetPlaylistUrl) {
-    const isTargetError = targetUrl && !targetValid;
-    elements.targetPlaylistUrl.style.borderColor = isTargetError ? '#ef4444' : '';
-    elements.targetPlaylistUrl.title = targetMessage;
+  if (currentMode === 'create' && elements.newPlaylistTitle) {
+    const isTitleError = elements.newPlaylistTitle.value && !secondaryValid;
+    elements.newPlaylistTitle.style.borderColor = isTitleError ? '#ef4444' : '';
+    elements.newPlaylistTitle.title = secondaryMessage;
   }
+
+  if (currentMode === 'merge' && elements.targetPlaylistUrl) {
+    const targetUrl = elements.targetPlaylistUrl?.value?.trim();
+    const isTargetError = targetUrl && !secondaryValid;
+    elements.targetPlaylistUrl.style.borderColor = isTargetError ? '#ef4444' : '';
+    elements.targetPlaylistUrl.title = secondaryMessage;
+  }
+
+  console.log(`[POPUP] Validation (${currentMode} mode): Source(${sourceValid ? '✅' : '❌'}), Secondary(${secondaryValid ? '✅' : '❌'}), Auth(${!!authToken ? '✅' : '❌'})`);
 }
 
 // Event handlers
@@ -378,6 +475,11 @@ async function handlePreview() {
         trackIds: trackIds,
         trackPreview: trackPreview
       });
+      
+      // NEW Phase 6: Update new playlist title after preview
+      if (currentMode === 'create') {
+        updateNewPlaylistTitle();
+      }
     }, 500);
 
   } catch (error) {
@@ -389,10 +491,71 @@ async function handlePreview() {
 async function handleClone() {
   try {
     if (!sourcePlaylistData) throw new Error('Please preview source playlist first');
+    if (!authToken) throw new Error('Authentication required. Please make sure you are logged into SoundCloud.');
 
+    if (currentMode === 'create') {
+      await handleCreateNewPlaylist();
+    } else {
+      await handleMergeExisting();
+    }
+
+  } catch (error) {
+    console.error('[POPUP] Clone operation error:', error);
+    showError('Clone Operation Failed', error.message);
+  }
+}
+
+// NEW Phase 6: Create new playlist implementation
+async function handleCreateNewPlaylist() {
+  try {
+    const newTitle = elements.newPlaylistTitle.value.trim();
+    if (!newTitle) throw new Error('Please enter a title for the new playlist');
+
+    const privacyRadios = document.querySelectorAll('input[name="privacy"]');
+    const selectedPrivacy = Array.from(privacyRadios).find(radio => radio.checked)?.value || 'public';
+
+    console.log(`[POPUP] Creating new playlist: "${newTitle}" (${selectedPrivacy})`);
+
+    showProgress('Creating new playlist...', 10);
+
+    updateProgress('Extracting tracks from source...', 30);
+    const sourceTrackIds = SoundCloudUtils.extractTrackIds(sourcePlaylistData);
+    console.log(`[POPUP] Extracted ${sourceTrackIds.length} tracks from source`);
+
+    if (sourceTrackIds.length === 0) {
+      throw new Error('Source playlist has no valid tracks to copy');
+    }
+
+    updateProgress('Creating playlist on SoundCloud...', 70);
+    const newPlaylist = await SoundCloudUtils.createNewPlaylist({
+      title: newTitle,
+      sharing: selectedPrivacy,
+      tracks: sourceTrackIds
+    }, currentCredentials, authToken);
+
+    updateProgress('Complete!', 100);
+
+    setTimeout(() => {
+      showCreateSuccess({
+        newPlaylist,
+        sourcePlaylist: sourcePlaylistData,
+        tracksAdded: sourceTrackIds.length
+      });
+    }, 500);
+
+    console.log(`[POPUP] New playlist created successfully: ${newPlaylist.id}`);
+
+  } catch (error) {
+    console.error('[POPUP] Create new playlist error:', error);
+    throw error;
+  }
+}
+
+// Existing merge flow (renamed for clarity)
+async function handleMergeExisting() {
+  try {
     const targetUrl = elements.targetPlaylistUrl.value.trim();
     if (!targetUrl) throw new Error('Please enter target playlist URL');
-    if (!authToken) throw new Error('Authentication required. Please make sure you are logged into SoundCloud.');
 
     showProgress('Analyzing target playlist...', 10);
 
@@ -430,8 +593,8 @@ async function handleClone() {
     }, 500);
 
   } catch (error) {
-    console.error('[POPUP] Clone preparation error:', error);
-    showError('Target Analysis Failed', error.message);
+    console.error('[POPUP] Merge existing error:', error);
+    throw error;
   }
 }
 
@@ -613,6 +776,67 @@ async function showMergeConfirmation(updatePackage) {
   });
 }
 
+// NEW Phase 6: Show create success results
+function showCreateSuccess(data) {
+  hideAllSections();
+  elements.resultsSection.style.display = 'block';
+  elements.resultsTitle.textContent = '🎉 Playlist Created Successfully';
+
+  const { newPlaylist, sourcePlaylist, tracksAdded } = data;
+
+  elements.resultsSummary.innerHTML = `
+    <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 6px; padding: 16px; text-align: center; margin-bottom: 16px;">
+      <h3 style="margin: 0 0 8px 0; color: #15803d;">✅ New Playlist Created!</h3>
+      <div style="font-size: 14px; color: #166534;">
+        <strong>"${SoundCloudUtils.sanitizeString(newPlaylist.title)}"</strong><br>
+        Successfully created with <strong>${tracksAdded}</strong> tracks
+      </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+      <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; text-align: center;">
+        <div style="font-size: 20px; font-weight: bold; color: #059669;">${tracksAdded}</div>
+        <div style="font-size: 11px; color: #666;">Tracks Added</div>
+      </div>
+      <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; text-align: center;">
+        <div style="font-size: 20px; font-weight: bold; color: #2563eb;">${newPlaylist.sharing === 'public' ? '🌐' : '🔒'}</div>
+        <div style="font-size: 11px; color: #666;">${newPlaylist.sharing === 'public' ? 'Public' : 'Private'}</div>
+      </div>
+    </div>
+  `;
+
+  elements.resultsDetails.innerHTML = `
+    <div style="margin-top: 16px;">
+      <strong>📊 Creation Details:</strong><br>
+      <div style="font-size: 12px; color: #666; margin-top: 8px; line-height: 1.5;">
+        Source: "${SoundCloudUtils.sanitizeString(sourcePlaylist.title)}"<br>
+        New Playlist ID: ${newPlaylist.id}<br>
+        Privacy: ${newPlaylist.sharing}<br>
+        Created: ${new Date().toLocaleDateString()}
+      </div>
+    </div>
+    
+    <div style="background: #f0f9ff; border: 1px solid #0ea5e9; padding: 12px; border-radius: 6px; margin-top: 16px;">
+      <div style="font-size: 12px; color: #0c4a6e;">
+        💡 <strong>Your new playlist is ready!</strong> You can now find it in your SoundCloud library and share it with others.
+      </div>
+    </div>
+  `;
+
+  elements.openTargetBtn.style.display = 'inline-flex';
+  elements.openTargetBtn.textContent = '🎵 Open New Playlist';
+  elements.openTargetBtn.onclick = () => {
+    chrome.tabs.create({ url: newPlaylist.permalink_url });
+  };
+
+  elements.newCloneBtn.textContent = '🔄 Create Another Playlist';
+
+  const executeBtn = document.getElementById('executeMergeBtn');
+  if (executeBtn) executeBtn.remove();
+
+  console.log('[POPUP] Create success screen displayed');
+}
+
 async function executePlaylistUpdate(updatePackage) {
   try {
     const result = await SoundCloudUtils.updatePlaylist(
@@ -715,9 +939,15 @@ function showPreviewResults(data) {
   const canProceed = validation.isAccessible && hasValidToken;
 
   if (elements.cloneBtn) {
-    elements.cloneBtn.disabled = !canProceed;
-    elements.cloneBtn.textContent = canProceed ? '🚀 Analyze Target' : '🔒 Login Required';
+  elements.cloneBtn.disabled = !canProceed;
+  
+  // Update button text based on mode
+  if (currentMode === 'create') {
+    elements.cloneBtnText.textContent = canProceed ? '🚀 Create Playlist' : '🔒 Login Required';
+  } else {
+    elements.cloneBtnText.textContent = canProceed ? '🚀 Analyze Target' : '🔒 Login Required';
   }
+}
 }
 
 function showMergePreview(data) {
@@ -875,8 +1105,17 @@ function handleNewClone() {
   hideAllSections();
   elements.sourcePlaylistUrl.value = '';
   elements.targetPlaylistUrl.value = '';
+  elements.newPlaylistTitle.value = ''; // NEW: Clear new playlist title
   sourcePlaylistData = null;
   targetPlaylistData = null;
+  
+  // Reset to default mode (create)
+  if (elements.createNewMode) {
+    elements.createNewMode.checked = true;
+    currentMode = 'create';
+    updateModeUI();
+  }
+  
   updateUIState();
 }
 
@@ -968,6 +1207,16 @@ window.popupUtils = {
   getCurrentUser: () => currentUser,
   getAuthToken: () => authToken,
   getLastUpdatePackage: () => lastUpdatePackage,
+  getCurrentMode: () => currentMode,
+  switchMode: (mode) => {
+    if (mode === 'create' && elements.createNewMode) {
+      elements.createNewMode.checked = true;
+      handleModeChange();
+    } else if (mode === 'merge' && elements.mergeExistingMode) {
+      elements.mergeExistingMode.checked = true;
+      handleModeChange();
+    }
+  },
   logCurrentState: () => {
     console.group('📊 CURRENT EXTENSION STATE');
     console.log('Credentials:', currentCredentials);

@@ -57,6 +57,23 @@
       </div>
       <div class="section-content">
         
+        <!-- Mode Toggle Switch (NEW) -->
+        <div class="mode-toggle-container">
+          <label class="mode-toggle-label">Clone Mode:</label>
+          <div class="toggle-switch">
+            <input type="radio" id="createNewMode" name="cloneMode" value="create" checked>
+            <input type="radio" id="mergeExistingMode" name="cloneMode" value="merge">
+            <div class="toggle-slider">
+              <label for="createNewMode" class="toggle-option left">
+                ➕ Create New
+              </label>
+              <label for="mergeExistingMode" class="toggle-option right">
+                🔄 Merge Existing
+              </label>
+            </div>
+          </div>
+        </div>
+
         <!-- Source Playlist Input -->
         <div class="input-group">
           <label for="sourcePlaylistUrl">Source Playlist URL:</label>
@@ -71,15 +88,47 @@
           </button>
         </div>
 
-        <!-- Target Playlist Input -->
-        <div class="input-group">
-          <label for="targetPlaylistUrl">Target Playlist URL:</label>
-          <input 
-            type="url" 
-            id="targetPlaylistUrl" 
-            placeholder="https://soundcloud.com/you/sets/your-playlist"
-            class="input-field"
-          >
+        <!-- Create New Mode Inputs (NEW) -->
+        <div class="create-mode-inputs" id="createModeInputs">
+          <div class="input-group">
+            <label for="newPlaylistTitle">New Playlist Title:</label>
+            <input 
+              type="text" 
+              id="newPlaylistTitle" 
+              placeholder="Copy of [Source Title]"
+              class="input-field"
+              maxlength="100"
+            >
+          </div>
+          
+          <div class="input-group">
+            <label class="privacy-label">Privacy Setting:</label>
+            <div class="privacy-options">
+              <label class="radio-label">
+                <input type="radio" name="privacy" value="public" checked>
+                <span class="radio-custom"></span>
+                🌐 Public
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="privacy" value="private">
+                <span class="radio-custom"></span>
+                🔒 Private
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Merge Existing Mode Inputs -->
+        <div class="merge-mode-inputs" id="mergeModeInputs" style="display: none;">
+          <div class="input-group">
+            <label for="targetPlaylistUrl">Target Playlist URL:</label>
+            <input 
+              type="url" 
+              id="targetPlaylistUrl" 
+              placeholder="https://soundcloud.com/you/sets/your-playlist"
+              class="input-field"
+            >
+          </div>
         </div>
 
         <!-- Clone Options -->
@@ -102,7 +151,7 @@
             👁️ Preview Changes
           </button>
           <button class="btn btn-success" id="cloneBtn" disabled>
-            🚀 Clone Playlist
+            <span id="cloneBtnText">🚀 Create Playlist</span>
           </button>
         </div>
 
@@ -171,13 +220,19 @@
       <div class="section-content">
         <div class="help-tips">
           <div class="tip">
+            <strong>➕ Create New:</strong> Copy source playlist to a brand new playlist with custom title and privacy settings
+          </div>
+          <div class="tip">
+            <strong>🔄 Merge Existing:</strong> Add source tracks to an existing playlist with advanced merge options
+          </div>
+          <div class="tip">
             <strong>Step 1:</strong> Visit any SoundCloud page to capture API credentials
           </div>
           <div class="tip">
-            <strong>Step 2:</strong> Navigate to the playlist you want to clone
+            <strong>Step 2:</strong> Navigate to source playlist or enter URL manually
           </div>
           <div class="tip">
-            <strong>Step 3:</strong> Set your target playlist and click Clone
+            <strong>Step 3:</strong> Choose mode, preview, then create/merge!
           </div>
         </div>
         <div class="help-links">
@@ -190,7 +245,7 @@
 
   <!-- Footer -->
   <div class="footer">
-    <div class="version">v1.0.0</div>
+    <div class="version">v1.1.0</div>
     <div class="links">
       <a href="#" id="aboutBtn">About</a>
       <a href="#" id="supportBtn">Support</a>
