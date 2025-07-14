@@ -1,6 +1,6 @@
 /**
  * Popup script for SoundCloud Playlist Clone Extension - Phase 4 Complete
- * Part 1: Core Functions and UI Management
+ * Debug logging features removed for production
  */
 
 console.log('[POPUP] Popup script starting...');
@@ -9,7 +9,6 @@ console.log('[POPUP] Popup script starting...');
 let currentCredentials = null;
 let currentPageInfo = null;
 let isOperationInProgress = false;
-let debugLogs = [];
 let sourcePlaylistData = null;
 let targetPlaylistData = null;
 let currentUser = null;
@@ -37,8 +36,7 @@ function cacheElements() {
     'progressDetails', 'cancelBtn', 'resultsSection', 'resultsTitle',
     'resultsSummary', 'resultsDetails', 'newCloneBtn', 'openTargetBtn',
     'errorSection', 'errorMessage', 'errorDetails', 'retryBtn',
-    'debugPanel', 'debugLogs', 'viewLogsBtn', 'clearDataBtn',
-    'loadingOverlay'
+    'clearDataBtn', 'loadingOverlay'
   ];
 
   ids.forEach(id => {
@@ -58,11 +56,7 @@ function setupEventListeners() {
   elements.newCloneBtn?.addEventListener('click', handleNewClone);
   elements.openTargetBtn?.addEventListener('click', handleOpenTarget);
   elements.retryBtn?.addEventListener('click', handleRetry);
-  elements.viewLogsBtn?.addEventListener('click', showDebugPanel);
   elements.clearDataBtn?.addEventListener('click', handleClearData);
-  document.getElementById('closeDebugBtn')?.addEventListener('click', hideDebugPanel);
-  document.getElementById('copyLogsBtn')?.addEventListener('click', copyDebugLogs);
-  document.getElementById('clearLogsBtn')?.addEventListener('click', clearDebugLogs);
   elements.sourcePlaylistUrl?.addEventListener('input', validateInputs);
   elements.targetPlaylistUrl?.addEventListener('input', validateInputs);
   chrome.runtime.onMessage.addListener(handleBackgroundMessage);
@@ -86,26 +80,21 @@ async function initializeUI() {
 async function sendMessageWithRetry(tabId, message, maxRetries = 3, delayMs = 1000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      addDebugLog(`📤 Sending message (attempt ${attempt}/${maxRetries}): ${message.action}`);
       const response = await chrome.tabs.sendMessage(tabId, message);
-      addDebugLog(`📨 Received response: ${JSON.stringify(response)}`);
       return response;
     } catch (error) {
-      addDebugLog(`❌ Message attempt ${attempt} failed: ${error.message}`);
       if (attempt === maxRetries) throw error;
 
       if (error.message.includes('Could not establish connection')) {
-        addDebugLog(`⏳ Content script not ready, waiting ${delayMs * attempt}ms...`);
         await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
         try {
           await chrome.scripting.executeScript({
             target: { tabId: tabId },
             files: ['content.js']
           });
-          addDebugLog('🔄 Content script re-injected');
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (injectError) {
-          addDebugLog(`⚠️ Content script injection failed: ${injectError.message}`);
+          console.warn('[POPUP] Content script injection failed:', injectError.message);
         }
       } else {
         await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -116,7 +105,6 @@ async function sendMessageWithRetry(tabId, message, maxRetries = 3, delayMs = 10
 
 async function checkCredentials() {
   try {
-    addDebugLog('Checking credentials...');
     const response = await chrome.runtime.sendMessage({ action: 'getCredentials' });
     currentCredentials = response.credentials;
 
@@ -135,7 +123,6 @@ async function checkCredentials() {
       statusIndicator.querySelector('.status-dot').className = 'status-dot success';
       statusIndicator.querySelector('.status-text').textContent = 'Ready';
       elements.refreshCredentialsBtn.style.display = 'none';
-      addDebugLog('✅ Valid credentials found');
     } else {
       statusCard.className = 'status-card warning';
       statusCard.innerHTML = `
@@ -147,7 +134,6 @@ async function checkCredentials() {
       statusIndicator.querySelector('.status-dot').className = 'status-dot warning';
       statusIndicator.querySelector('.status-text').textContent = 'Need Setup';
       elements.refreshCredentialsBtn.style.display = 'block';
-      addDebugLog('⚠️ No credentials found');
     }
   } catch (error) {
     console.error('[POPUP] Error checking credentials:', error);
@@ -159,13 +145,11 @@ async function checkCredentials() {
     `;
     elements.statusIndicator.querySelector('.status-dot').className = 'status-dot error';
     elements.statusIndicator.querySelector('.status-text').textContent = 'Error';
-    addDebugLog(`❌ Credential check error: ${error.message}`);
   }
 }
 
 async function checkCurrentPage() {
   try {
-    addDebugLog('Checking current page...');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab.url.includes('soundcloud.com')) {
@@ -194,7 +178,6 @@ async function checkCurrentPage() {
       if (elements.sourcePlaylistUrl) {
         elements.sourcePlaylistUrl.value = tab.url;
       }
-      addDebugLog(`🎵 Playlist detected: ID ${response.playlistId}`);
     } else {
       currentPageInfo = { isPlaylist: false, url: tab.url };
       elements.pageInfo.innerHTML = `
@@ -203,7 +186,6 @@ async function checkCurrentPage() {
           Not a playlist page. Navigate to a playlist to auto-detect.
         </div>
       `;
-      addDebugLog('📄 Not a playlist page');
     }
   } catch (error) {
     console.error('[POPUP] Error checking current page:', error);
@@ -215,17 +197,14 @@ async function checkCurrentPage() {
       <div class="page-status">❌ Page Check Failed</div>
       <div class="page-details">${errorMessage}</div>
     `;
-    addDebugLog(`❌ Page check error: ${error.message}`);
   }
 }
 
 async function checkAuthenticationStatus() {
   try {
-    addDebugLog('🔐 Checking authentication status...');
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tab.url.includes('soundcloud.com')) {
-      addDebugLog('⚠️ Not on SoundCloud - skipping auth check');
       return;
     }
 
@@ -235,27 +214,21 @@ async function checkAuthenticationStatus() {
       const { isLoggedIn, user, token, error } = response;
 
       if (error) {
-        addDebugLog(`⚠️ Auth check returned error: ${error}`);
         return;
       }
 
       if (isLoggedIn && token) {
         currentUser = user;
         authToken = token;
-        addDebugLog(`✅ Token found: ${token.substring(0, 20)}...`);
 
         if (!user && currentCredentials) {
           try {
-            addDebugLog('🔍 User info missing, trying API validation...');
             const validation = await SoundCloudUtils.validateAuthToken(token, currentCredentials);
             if (validation.valid && validation.user) {
               currentUser = validation.user;
-              addDebugLog(`✅ User info retrieved via API: ${validation.user.username}`);
-            } else {
-              addDebugLog(`⚠️ API validation failed: ${validation.error}`);
             }
           } catch (validationError) {
-            addDebugLog(`⚠️ Token validation error: ${validationError.message}`);
+            console.warn('[POPUP] Token validation error:', validationError.message);
           }
         }
 
@@ -267,30 +240,15 @@ async function checkAuthenticationStatus() {
               username: `User_${tokenParts[2]}`,
               permalink: `user_${tokenParts[2]}`
             };
-            addDebugLog(`✅ Created fallback user from token: ${currentUser.username}`);
           }
         }
-
-        if (currentUser) {
-          addDebugLog(`✅ User authenticated: ${currentUser.username || 'Unknown'}`);
-        } else {
-          addDebugLog('⚠️ Token found but no user info available');
-        }
       } else {
-        addDebugLog('❌ User not authenticated or no token found');
         currentUser = null;
         authToken = null;
       }
-    } else {
-      addDebugLog('⚠️ No response from content script authentication check');
     }
   } catch (error) {
     console.error('[POPUP] Error checking authentication:', error);
-    if (error.message.includes('Could not establish connection')) {
-      addDebugLog('⚠️ Content script not loaded - skipping auth check');
-    } else {
-      addDebugLog(`❌ Auth check error: ${error.message}`);
-    }
   }
 }
 
@@ -365,16 +323,7 @@ function validateInputs() {
     elements.targetPlaylistUrl.style.borderColor = isTargetError ? '#ef4444' : '';
     elements.targetPlaylistUrl.title = targetMessage;
   }
-
-  if (sourceUrl || targetUrl) {
-    addDebugLog(`🔍 Input validation: Source(${sourceValid ? '✅' : '❌'}), Target(${targetValid ? '✅' : '❌'})`);
-  }
 }
-
-/**
- * Popup script Part 2: Event Handlers and Phase 4 Functions
- * Load this after popup.js
- */
 
 // Event handlers
 async function handleRefreshCredentials() {
@@ -396,7 +345,6 @@ function handleUseCurrentPage() {
   if (currentPageInfo?.isPlaylist && elements.sourcePlaylistUrl) {
     elements.sourcePlaylistUrl.value = currentPageInfo.url;
     validateInputs();
-    addDebugLog('📍 Used current page as source');
   }
 }
 
@@ -407,24 +355,19 @@ async function handlePreview() {
     if (!currentCredentials) throw new Error('API credentials not available. Please visit SoundCloud first.');
 
     showProgress('Analyzing source playlist...', 10);
-    addDebugLog('🔍 Starting source playlist analysis...');
 
     updateProgress('Extracting playlist ID...', 20);
     const playlistId = await SoundCloudUtils.resolvePlaylistId(sourceUrl, currentCredentials);
-    addDebugLog(`📊 Resolved playlist ID: ${playlistId}`);
 
     updateProgress('Fetching playlist data...', 40);
     const playlistInfo = await SoundCloudUtils.fetchPlaylistInfo(playlistId, currentCredentials);
-    addDebugLog(`✅ Fetched playlist: "${playlistInfo.title}" with ${playlistInfo.track_count} tracks`);
 
     updateProgress('Validating playlist access...', 60);
     const validation = SoundCloudUtils.validatePlaylistAccess(playlistInfo);
-    addDebugLog(`🔍 Validation result: ${validation.isAccessible ? 'Valid' : 'Issues found'}`);
 
     updateProgress('Processing track data...', 80);
     const trackIds = SoundCloudUtils.extractTrackIds(playlistInfo);
     const trackPreview = SoundCloudUtils.getTrackPreview(playlistInfo, 5);
-    addDebugLog(`🎵 Processed ${trackIds.length} tracks`);
 
     updateProgress('Complete!', 100);
 
@@ -435,13 +378,11 @@ async function handlePreview() {
         trackIds: trackIds,
         trackPreview: trackPreview
       });
-      addDebugLog(`✅ Preview completed successfully`);
     }, 500);
 
   } catch (error) {
     console.error('[POPUP] Preview error:', error);
     showError('Preview Failed', error.message);
-    addDebugLog(`❌ Preview error: ${error.message}`);
   }
 }
 
@@ -454,24 +395,19 @@ async function handleClone() {
     if (!authToken) throw new Error('Authentication required. Please make sure you are logged into SoundCloud.');
 
     showProgress('Analyzing target playlist...', 10);
-    addDebugLog('🎯 Starting target playlist analysis...');
 
     updateProgress('Extracting target playlist ID...', 20);
     const targetId = await SoundCloudUtils.resolvePlaylistId(targetUrl, currentCredentials);
-    addDebugLog(`🎯 Target playlist ID: ${targetId}`);
 
     updateProgress('Fetching target playlist...', 40);
     targetPlaylistData = await SoundCloudUtils.fetchTargetPlaylist(targetId, currentCredentials, authToken);
-    addDebugLog(`🎯 Target playlist fetched: "${targetPlaylistData.title}"`);
 
     updateProgress('Checking permissions...', 60);
     const permissions = SoundCloudUtils.checkEditPermissions(targetPlaylistData, currentUser);
     if (!permissions.canEdit) throw new Error(permissions.reason);
-    addDebugLog('✅ Edit permissions confirmed');
 
     updateProgress('Analyzing current tracks...', 70);
     const targetAnalysis = SoundCloudUtils.analyzeTargetPlaylist(targetPlaylistData);
-    addDebugLog(`📊 Target analysis: ${targetAnalysis.currentTracks} tracks`);
 
     updateProgress('Preparing merge preview...', 90);
     const mergeOptions = {
@@ -481,7 +417,6 @@ async function handleClone() {
     };
 
     const mergePreview = SoundCloudUtils.prepareMergePreview(sourcePlaylistData, targetPlaylistData, mergeOptions);
-    addDebugLog(`🔄 Merge preview: +${mergePreview.merge.tracksToAdd} tracks`);
 
     updateProgress('Complete!', 100);
     setTimeout(() => {
@@ -492,20 +427,17 @@ async function handleClone() {
         mergePreview,
         permissions
       });
-      addDebugLog('✅ Target analysis completed successfully');
     }, 500);
 
   } catch (error) {
     console.error('[POPUP] Clone preparation error:', error);
     showError('Target Analysis Failed', error.message);
-    addDebugLog(`❌ Clone prep error: ${error.message}`);
   }
 }
 
 // Phase 4: Execute Merge
 async function handleExecuteMerge(previewData) {
   try {
-    addDebugLog('🚀 Starting merge execution (Phase 4)...');
     const { source, target, mergePreview } = previewData;
 
     if (!sourcePlaylistData || !targetPlaylistData) throw new Error('Missing playlist data for merge');
@@ -513,16 +445,13 @@ async function handleExecuteMerge(previewData) {
 
     const mergeOptions = await showMergeOptionsDialog();
     if (!mergeOptions) {
-      addDebugLog('❌ Merge cancelled by user');
       return;
     }
 
     showProgress('Executing merge...', 0);
-    addDebugLog(`🔄 Merge options: ${JSON.stringify(mergeOptions)}`);
 
     const progressCallback = (message, percentage) => {
       updateProgress(message, percentage);
-      addDebugLog(`⏳ ${message} (${percentage}%)`);
     };
 
     const updatePackage = await SoundCloudUtils.executeMerge(sourcePlaylistData, targetPlaylistData, {
@@ -530,21 +459,10 @@ async function handleExecuteMerge(previewData) {
       progressCallback
     });
 
-    addDebugLog(`✅ Merge completed: ${updatePackage.stats.tracksAdded} tracks added`);
-
-    // Phase 4 Debug Output
-    console.group('🚀 PHASE 4 → PHASE 5 HANDOFF');
-    console.log('📦 Complete Update Package:', updatePackage);
-    console.log('🎯 Final Track IDs:', updatePackage.finalTrackIds);
-    console.log('📊 Stats:', updatePackage.stats);
-    console.groupEnd();
-
     lastUpdatePackage = updatePackage;
-    addDebugLog('📦 Update package stored');
 
     const confirmed = await showMergeConfirmation(updatePackage);
     if (!confirmed) {
-      addDebugLog('❌ Final confirmation cancelled');
       hideAllSections();
       return;
     }
@@ -553,12 +471,10 @@ async function handleExecuteMerge(previewData) {
     await executePlaylistUpdate(updatePackage);
 
     showMergeSuccess(updatePackage);
-    addDebugLog('🎉 Merge execution completed successfully!');
 
   } catch (error) {
     console.error('[POPUP] Execute merge error:', error);
     showError('Merge Execution Failed', error.message);
-    addDebugLog(`❌ Merge execution error: ${error.message}`);
   }
 }
 
@@ -699,15 +615,6 @@ async function showMergeConfirmation(updatePackage) {
 
 async function executePlaylistUpdate(updatePackage) {
   try {
-    console.group('🎯 PHASE 5: API EXECUTION');
-    console.log('🚀 Starting playlist update execution...');
-    console.log('Target Playlist ID:', updatePackage.operation.targetPlaylistId);
-    console.log('Track Count to Update:', updatePackage.finalTrackIds.length);
-    console.log('Final Track IDs:', updatePackage.finalTrackIds);
-    console.groupEnd();
-
-    addDebugLog('🎯 Executing playlist update...');
-
     const result = await SoundCloudUtils.updatePlaylist(
       updatePackage.operation.targetPlaylistId,
       updatePackage.finalTrackIds,
@@ -715,8 +622,6 @@ async function executePlaylistUpdate(updatePackage) {
       authToken
     );
 
-    console.log('✅ API Response:', result);
-    addDebugLog('✅ Playlist updated successfully');
     return result;
 
   } catch (error) {
@@ -813,8 +718,6 @@ function showPreviewResults(data) {
     elements.cloneBtn.disabled = !canProceed;
     elements.cloneBtn.textContent = canProceed ? '🚀 Analyze Target' : '🔒 Login Required';
   }
-
-  addDebugLog(`${canProceed ? '✅' : '❌'} Source playlist validated - Clone button ${canProceed ? 'enabled' : 'disabled'}`);
 }
 
 function showMergePreview(data) {
@@ -904,7 +807,6 @@ function showMergePreview(data) {
   executeMergeBtn.onclick = () => handleExecuteMerge(data);
 
   elements.resultsSection.querySelector('.action-buttons').insertBefore(executeMergeBtn, elements.newCloneBtn);
-  addDebugLog('✅ Merge preview displayed successfully');
 }
 
 function showMergeSuccess(updatePackage) {
@@ -961,83 +863,111 @@ function showMergeSuccess(updatePackage) {
 
   const executeBtn = document.getElementById('executeMergeBtn');
   if (executeBtn) executeBtn.remove();
-
-  addDebugLog('🎉 Success screen displayed');
 }
 
 // Utility Functions
-function handleCancel() { addDebugLog('❌ Operation cancelled'); hideAllSections(); updateUIState(); }
-function handleNewClone() { hideAllSections(); elements.sourcePlaylistUrl.value = ''; elements.targetPlaylistUrl.value = ''; sourcePlaylistData = null; targetPlaylistData = null; updateUIState(); }
-function handleOpenTarget() { const targetUrl = elements.targetPlaylistUrl.value.trim(); if (targetUrl) chrome.tabs.create({ url: targetUrl }); }
-function handleRetry() { hideAllSections(); updateUIState(); }
-function handleBackgroundMessage(request, sender, sendResponse) { if (request.action === 'credentialsUpdated') { currentCredentials = request.credentials; checkCredentials(); updateUIState(); } }
+function handleCancel() {
+  hideAllSections();
+  updateUIState();
+}
 
-function showError(title, message, details = '') { hideAllSections(); elements.errorSection.style.display = 'block'; elements.errorMessage.textContent = message; elements.errorDetails.textContent = details; addDebugLog(`❌ Error: ${title} - ${message}`); }
-function showProgress(text, percentage = 0) { hideAllSections(); elements.progressSection.style.display = 'block'; elements.progressText.textContent = text; elements.progressFill.style.width = `${Math.max(0, Math.min(100, percentage))}%`; isOperationInProgress = true; updateUIState(); }
-function updateProgress(text, percentage, details = '') { if (elements.progressSection.style.display === 'block') { elements.progressText.textContent = text; elements.progressFill.style.width = `${Math.max(0, Math.min(100, percentage))}%`; elements.progressDetails.textContent = details; } }
-function hideAllSections() { ['progressSection', 'resultsSection', 'errorSection'].forEach(sectionId => { if (elements[sectionId]) elements[sectionId].style.display = 'none'; }); isOperationInProgress = false; }
-function showLoading(text = 'Loading...') { if (elements.loadingOverlay) { elements.loadingOverlay.style.display = 'flex'; const loadingText = elements.loadingOverlay.querySelector('.loading-text'); if (loadingText) loadingText.textContent = text; } }
-function hideLoading() { if (elements.loadingOverlay) elements.loadingOverlay.style.display = 'none'; }
+function handleNewClone() {
+  hideAllSections();
+  elements.sourcePlaylistUrl.value = '';
+  elements.targetPlaylistUrl.value = '';
+  sourcePlaylistData = null;
+  targetPlaylistData = null;
+  updateUIState();
+}
 
-function addDebugLog(message) { const timestamp = new Date().toISOString().substring(11, 23); const logEntry = `[${timestamp}] ${message}`; debugLogs.push(logEntry); console.log(`[POPUP] ${logEntry}`); if (debugLogs.length > 100) debugLogs = debugLogs.slice(-100); if (elements.debugLogs && elements.debugPanel.style.display !== 'none') { elements.debugLogs.value = debugLogs.join('\n'); elements.debugLogs.scrollTop = elements.debugLogs.scrollHeight; } }
-function showDebugPanel() { if (elements.debugPanel && elements.debugLogs) { elements.debugLogs.value = debugLogs.join('\n'); elements.debugPanel.style.display = 'block'; elements.debugLogs.scrollTop = elements.debugLogs.scrollHeight; } }
-function hideDebugPanel() { if (elements.debugPanel) elements.debugPanel.style.display = 'none'; }
-function copyDebugLogs() { if (elements.debugLogs) { elements.debugLogs.select(); document.execCommand('copy'); addDebugLog('📋 Debug logs copied to clipboard'); } }
-function clearDebugLogs() { debugLogs = []; if (elements.debugLogs) elements.debugLogs.value = ''; addDebugLog('🗑️ Debug logs cleared'); }
+function handleOpenTarget() {
+  const targetUrl = elements.targetPlaylistUrl.value.trim();
+  if (targetUrl) chrome.tabs.create({ url: targetUrl });
+}
+
+function handleRetry() {
+  hideAllSections();
+  updateUIState();
+}
+
+function handleBackgroundMessage(request, sender, sendResponse) {
+  if (request.action === 'credentialsUpdated') {
+    currentCredentials = request.credentials;
+    checkCredentials();
+    updateUIState();
+  }
+}
+
+function showError(title, message, details = '') {
+  hideAllSections();
+  elements.errorSection.style.display = 'block';
+  elements.errorMessage.textContent = message;
+  elements.errorDetails.textContent = details;
+}
+
+function showProgress(text, percentage = 0) {
+  hideAllSections();
+  elements.progressSection.style.display = 'block';
+  elements.progressText.textContent = text;
+  elements.progressFill.style.width = `${Math.max(0, Math.min(100, percentage))}%`;
+  isOperationInProgress = true;
+  updateUIState();
+}
+
+function updateProgress(text, percentage, details = '') {
+  if (elements.progressSection.style.display === 'block') {
+    elements.progressText.textContent = text;
+    elements.progressFill.style.width = `${Math.max(0, Math.min(100, percentage))}%`;
+    elements.progressDetails.textContent = details;
+  }
+}
+
+function hideAllSections() {
+  ['progressSection', 'resultsSection', 'errorSection'].forEach(sectionId => {
+    if (elements[sectionId]) elements[sectionId].style.display = 'none';
+  });
+  isOperationInProgress = false;
+}
+
+function showLoading(text = 'Loading...') {
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.style.display = 'flex';
+    const loadingText = elements.loadingOverlay.querySelector('.loading-text');
+    if (loadingText) loadingText.textContent = text;
+  }
+}
+
+function hideLoading() {
+  if (elements.loadingOverlay) elements.loadingOverlay.style.display = 'none';
+}
 
 async function handleClearData() {
   if (confirm('Clear all stored data? This will remove credentials and settings.')) {
     try {
       await chrome.storage.local.clear();
-      addDebugLog('🗑️ All data cleared');
-      currentCredentials = null; currentPageInfo = null; sourcePlaylistData = null; targetPlaylistData = null; currentUser = null; authToken = null; lastUpdatePackage = null;
+      currentCredentials = null;
+      currentPageInfo = null;
+      sourcePlaylistData = null;
+      targetPlaylistData = null;
+      currentUser = null;
+      authToken = null;
+      lastUpdatePackage = null;
       await initializeUI();
     } catch (error) {
       console.error('[POPUP] Error clearing data:', error);
-      addDebugLog(`❌ Clear data error: ${error.message}`);
     }
   }
 }
 
-// Development utilities
+// Development utilities (minimal version)
 window.popupUtils = {
   getCredentials: () => currentCredentials,
   getPageInfo: () => currentPageInfo,
-  getLogs: () => debugLogs,
-  showDebug: showDebugPanel,
-  clearData: handleClearData,
   getSourceData: () => sourcePlaylistData,
   getTargetData: () => targetPlaylistData,
   getCurrentUser: () => currentUser,
   getAuthToken: () => authToken,
   getLastUpdatePackage: () => lastUpdatePackage,
-  testMerge: async (options = {}) => {
-    if (!sourcePlaylistData || !targetPlaylistData) {
-      console.error('Missing playlist data for test merge');
-      return;
-    }
-    try {
-      const updatePackage = await SoundCloudUtils.executeMerge(sourcePlaylistData, targetPlaylistData, { ...options, progressCallback: console.log });
-      console.log('Test merge result:', updatePackage);
-      return updatePackage;
-    } catch (error) {
-      console.error('Test merge failed:', error);
-    }
-  },
-  simulateMerge: (strategy = 'APPEND') => popupUtils.testMerge({ strategy, skipDuplicates: true }),
-  inspectUpdatePackage: () => {
-    if (lastUpdatePackage) {
-      console.group('🔍 STORED UPDATE PACKAGE INSPECTION');
-      console.log('Complete Package:', lastUpdatePackage);
-      console.log('Final Track IDs:', lastUpdatePackage.finalTrackIds);
-      console.log('Statistics:', lastUpdatePackage.stats);
-      console.log('API Payload:', lastUpdatePackage.apiPayload);
-      console.groupEnd();
-      return lastUpdatePackage;
-    } else {
-      console.log('❌ No update package stored yet');
-    }
-  },
   logCurrentState: () => {
     console.group('📊 CURRENT EXTENSION STATE');
     console.log('Credentials:', currentCredentials);
@@ -1050,4 +980,4 @@ window.popupUtils = {
   }
 };
 
-console.log('[POPUP] Phase 4 functions loaded');
+console.log('[POPUP] Popup script loaded (production version)');

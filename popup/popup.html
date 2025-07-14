@@ -159,9 +159,6 @@
           <button class="btn btn-secondary" id="retryBtn">
             🔄 Try Again
           </button>
-          <button class="btn btn-link" id="reportBtn">
-            📝 Report Issue
-          </button>
         </div>
       </div>
     </div>
@@ -184,7 +181,6 @@
           </div>
         </div>
         <div class="help-links">
-          <a href="#" id="viewLogsBtn" class="help-link">🔍 View Debug Logs</a>
           <a href="#" id="clearDataBtn" class="help-link">🗑️ Clear Stored Data</a>
         </div>
       </div>
@@ -198,22 +194,6 @@
     <div class="links">
       <a href="#" id="aboutBtn">About</a>
       <a href="#" id="supportBtn">Support</a>
-    </div>
-  </div>
-
-  <!-- Debug Panel (Hidden by default) -->
-  <div class="debug-panel" id="debugPanel" style="display: none;">
-    <div class="debug-header">
-      <h4>🔍 Debug Information</h4>
-      <button class="btn btn-link btn-small" id="closeDebugBtn">✕</button>
-    </div>
-    <div class="debug-content">
-      <textarea id="debugLogs" readonly></textarea>
-      <div class="debug-actions">
-        <button class="btn btn-secondary btn-small" id="copyLogsBtn">📋 Copy Logs</button>
-        <button class="btn btn-secondary btn-small" id="exportLogsBtn">💾 Export</button>
-        <button class="btn btn-danger btn-small" id="clearLogsBtn">🗑️ Clear</button>
-      </div>
     </div>
   </div>
 
